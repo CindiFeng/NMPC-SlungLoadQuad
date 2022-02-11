@@ -13,27 +13,6 @@ function dxdt = MS_StateFcn(x_state,input)
 % x(15:16) -  vp           payload frame [vpx,vpy] velocity [m/s]
 
 %% SPECIFY: 
-% Obstacle model 
-obstacle = struct;
-obstacle.detectionDist = 3; 
-
-% Obstacle cuboid dimensions 
-obstacle.L = 0.5; 
-obstacle.W = 0.5;
-obstacle.H = 0.5;
-
-obstacle.xVel = 0.5; % obstacle velocity [m/s]
-
-% Initial obstacle position(s)
-obstacle.x = 2; 
-obstacle.y = 0; 
-obstacle.z = 2;
-obstacle.detectedXo = zeros(3,1);
-
-% Buffer distances
-obstacle.Bo = 0.05; % bounding ellipsoid for which collisionss are checked
-obstacle.Be = 0.2; % expanded ellipsoid identified as high risk zone in planning
-
 % Parameters
 kf = 0.1; % prop thrust coefficient
 km = 0.1; % prop torque coefficient

@@ -10,31 +10,11 @@
 function cost = ms_CostFcn_terminal(stage,x,u,p)
 %% SPECIFY: 
 % Costs parameters
-qGoal = [3;0;5]; % quad goal position
-qStart = [0;0;5]; % quad start position
-
-% Obstacle model 
-obstacle = struct;
-obstacle.detectionDist = 3; 
-
-% Obstacle cuboid dimensions 
-obstacle.L = 0.5; 
-obstacle.W = 0.5;
-obstacle.H = 0.5;
-
-obstacle.xVel = 0.5; % obstacle velocity [m/s]
-
-% Initial obstacle position(s)
-obstacle.x = 2; 
-obstacle.y = 0; 
-obstacle.z = 2;
-obstacle.detectedXo = zeros(3,1);
-
-% Buffer distances
-obstacle.Bo = 0.05; % bounding ellipsoid for which collisionss are checked
-obstacle.Be = 0.2; % expanded ellipsoid identified as high risk zone in planning
+qGoal = [4;0;5]; % quad goal position
+qStart = [-1;0;5]; % quad start position
 
 %%
+obstacle = ms_obstacleTraj(stage);
 rc = p(1);
 cableL = p(2);
 
@@ -51,8 +31,8 @@ cnav = (norm(qGoal-qpos))^2/(norm(qGoal-qStart))^2; % navigation cost term
 wnav = 1; % weight
 
 %% Potential field based obstacle separation
-Xo = [obstacle.x; obstacle.y; obstacle.z]; 
-[~,nXo] = size(Xo); % total number of obstacles
+Xo = obstacle.Xo; 
+nXo = obstacle.nXo;
 
 if nXo == 0
     cpf = 0;
@@ -65,16 +45,19 @@ else
     
     for i = 1:nXo
         % Point to ellipsoid distance equation (Uteshev and Goncharova 2018
-%         [~,SeVec] = obstacleGeometry(obstacle,obstacle.detectedXo(:,i));
-        [~,SeVec] = obstacleGeometry(obstacle);
-        sigma = diag([1/SeVec(1)^2,1/SeVec(2)^2,1/SeVec(3)^2]);
-        doXq(i) = sum(diag(((Xq+eye(3,1)*rc)-Xo(:,i)).'*sigma*((Xq+eye(3,1)*rc)-Xo(:,i))-1));    
-        doXp(i) = sum(diag(((Xp+eye(3,1)*rc)-Xo(:,i)).'*sigma*((Xp+eye(3,1)*rc)-Xo(:,i))-1));
+        [~,sigma] = nmpc_obstacleEllipsoid(obstacle);
+        idx1 = 3*i - 2;
+        idx2 = 3*i;
+        distQ = Xq + eye(3,1)*rc - Xo(idx1:idx2,stage);
+        distL = Xp + eye(3,1)*rc - Xo(idx1:idx2,stage);
+        doXq(i) = sum(diag(distQ.' * sigma * distQ)-1);    
+        doXp(i) = sum(diag(distL.' * sigma * distL)-1);
         docp(i) = 0;
         
         if ((doXq < 0) || (doXp < 0) || (docp < 0))
             cpf(i) = max(abs([doXq,doXp,docp]));
             wpf(i) = 1.2;
+            disp('obstacle getting close')
         end
     end
 end

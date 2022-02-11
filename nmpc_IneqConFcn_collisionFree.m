@@ -5,7 +5,7 @@
 %                      e                    - slack
 %                      data                 - additional signals
 %                      obstacle,lim,params  - optional parameters
-%   Outputs          : cineq - column vector
+%   Outputs          : cineq - inequality constraints; column vector
 
 function cineq = nmpc_IneqConFcn_collisionFree(X,U,e,data,obstacle,lim,params)
 p             = data.PredictionHorizon;
@@ -17,31 +17,35 @@ Lz            = diag(Lz).';
 Lvec          = [rp;Lz]; % load pos. w.r.t quad pos.
 Xp            = Xq + Lvec; % load position over p horizon
 
-Xo            = obstacle.detectedXo; 
-[~,nXo]       = size(obstacle.detectedXo); % number of obstacles
-[~,p_hor]     = size(Xq);
-distQuad2Obs  = zeros(p_hor, nXo);
-distLoad2Obs  = zeros(p_hor, nXo);
-distCable2Obs = zeros(p_hor, nXo);
+nXo           = obstacle.nXo;
+Xo            = obstacle.Xo;
+distQuad2Obs  = zeros(p, nXo);
+distLoad2Obs  = zeros(p, nXo);
+distCable2Obs = zeros(p, nXo);
 
 for i = 1:nXo
     % Point to ellipsoid distance equation (Uteshev and Goncharova 2018)
-    [SoVec,~]          = obstacleGeometry(obstacle,Xo(:,i));
-    sigma              = diag([1/SoVec(1)^2,1/SoVec(2)^2,1/SoVec(3)^2]);
-    distQuad2Obs(:,i)  = diag(((Xq+eye(3,1)*params.rc)-Xo(:,i)).'*sigma*((Xq+eye(3,1)*params.rc)-Xo(:,i)))-1;    
-    distLoad2Obs(:,i)  = diag(((Xp+eye(3,1)*params.rc)-Xo(:,i)).'*sigma*((Xp+eye(3,1)*params.rc)-Xo(:,i)))-1;
+    [sigma,~] = nmpc_obstacleEllipsoid(obstacle);
+    idx1 = 3*i - 2;
+    idx2 = 3*i;
+%     distQ = Xq + eye(3,1)*params.rc - Xo(idx1:idx2,:);
+%     distL = Xp + eye(3,1)*params.rc - Xo(idx1:idx2,:);
+    distQ = Xq - Xo(idx1:idx2,:);
+    distL = Xp - Xo(idx1:idx2,:);
+    distQuad2Obs(:,i) = diag(distQ.' * sigma * distQ)-1;    
+    distLoad2Obs(:,i) = diag(distL.' * sigma * distL)-1;
     % distCable2Obs(i,:) = 0; 
 end
 
 % Put together inequality constraints (<= 0)
-distIneqEqns = 3*nXo*p_hor;
+distIneqEqns = 3*nXo*p;
 cineq_ = zeros(distIneqEqns,1);
 
 idx = 0;
 for i = [distQuad2Obs,distLoad2Obs]
     idx = idx + 1;
-    start_idx = p_hor*(idx-1)+1;
-    end_idx = p_hor*idx;
+    start_idx = p*(idx-1)+1;
+    end_idx = p*idx;
     cineq_(start_idx:end_idx) = i;
 end
 

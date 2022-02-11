@@ -46,12 +46,13 @@ nu = 4;
 nlobj = nlmpc(nx,ny,nu);
 
 Ts = 0.1;   % sample time [s]
-p = 50;     % prediction horizon
+p = 26;     % prediction horizon
 m = 2;      % control horizon
 
 nlobj.Ts = Ts;
 nlobj.PredictionHorizon = p;
-nlobj.ControlHorizon = p; % perform trajectory planning 
+% nlobj.ControlHorizon = p; % perform trajectory planning 
+nlobj.ControlHorizon = m; % tracking  
 
 nlobj.Model.StateFcn = "nmpc_StateFcn";
 
@@ -59,43 +60,20 @@ nlobj.Model.StateFcn = "nmpc_StateFcn";
 nlobj.Model.NumberOfParameters = 3;
 
 % Parameters to be passed
-obstacle = struct;
+obstacle = nmpc_obstacleTraj(p);
 lim = struct;
 params = struct; 
-
-obstacle.detectionDist = 3; 
-
-% Obstacle cuboid dimensions 
-obstacle.L = 0.25; 
-obstacle.W = 0.25;
-obstacle.H = 0.25;
-
-obstacle.xVel = 0.5; % obstacle velocity [m/s]
-
-% Initial obstacle position(s)
-obstacle.x = 2;
-obstacle.y = 0;
-obstacle.z = 5;
-obstacle.Xo = [2;0;5];
-obstacle.detectedXo = [2;0;5];
-
-% Buffer distances
-obstacle.Bo = 0.1; % bounding ellipsoid for which collisionss are checked
-obstacle.Be = 0.1; % expanded ellipsoid identified as high risk zone in planning
 
 % Workspace limits
 lim.Wmin = [-10;-10;0]; % workspace limits
 lim.Wmax = [10;10;20];
-
-% Collision-free constraint
-params.rc = 0.05; % quad and payload bounding sphere radius
 
 % Quadrotor system parameters
 params.cableL = 1.5; % cable length [m]
 
 % Costs parameters
 params.qGoal = [3;0;5]; % quad goal position
-params.qStart = [0;0;5]; % quad start position
+params.qStart = [-1;0;5]; % quad start position
 
 nloptions = nlmpcmoveopt;
 nloptions.Parameters = {obstacle,lim,params};
@@ -136,83 +114,86 @@ nlobj.Optimization.ReplaceStandardCost = true;
 % TODO: include jacobian
 
 %% Constraint Functions 
-% nlobj.Optimization.CustomIneqConFcn = "nmpc_IneqConFcn_collisionFree";
+nlobj.Optimization.CustomIneqConFcn = "nmpc_IneqConFcn_collisionFree";
 % nlobj.Optimization.CustomIneqConFcn = "nmpc_IneqConFcn_workspace";
 
 %% Validation
 % double check that everything above looks OK
-%validateFcns(nlobj,x0,u0,[],{obstacle,lim,params});
+validateFcns(nlobj,x0,u0,[],{obstacle,lim,params});
 
 %% Trajectory Planning with Static Obstacle
-obstacle.detectedXo = [2;0;2];
-nlobj.Optimization.CustomIneqConFcn = "nmpc_IneqConFcn_collisionFree";
-terminal = zeros(1,nx);
-terminal(1:3) = params.qGoal;
-[~,~,info] = nlmpcmove(nlobj,x0,u0,terminal,[],nloptions);
+% terminal = zeros(1,nx);
+% terminal(1:3) = params.qGoal;
+% [~,~,info] = nlmpcmove(nlobj,x0,u0,terminal,[],nloptions);
+% 
+% % Plot quadrotor path
+% figure;
+% plot(info.Xopt(:,1),info.Xopt(:,2),'bo')
+% hold on;
+% xlabel('x position')
+% ylabel('y position')
+% axis equal
+% 
+% % Plot obstacle position
+% rectangle('Position',[obstacle.Xo(1)-obstacle.W/2,obstacle.Xo(2)-obstacle.L/2,...
+%            obstacle.W,obstacle.L], 'FaceColor',[0.9290 0.6940 0.1250])
 
-% Plot quadrotor path
+%% Tracking Simulation 
+
+Duration = 4;
+T = 0:Ts:Duration; % simulation time steps
+xHistory = x0';
+lastMV = zeros(nu,1);
+uHistory = lastMV';
+
+% Custom reference trajectory
+Xref = nmpc_referenceTrajectory(params,length(T),p);
+
 figure;
-plot(info.Xopt(:,1),info.Xopt(:,2),'bo')
-hold on;
+plot(Xref(:,1), Xref(:,2),'bo')
+hold on
 xlabel('x position')
 ylabel('y position')
-axis equal
 
 % Plot obstacle position
-rectangle('Position',[obstacle.x-obstacle.W/2,obstacle.y-obstacle.L/2,...
+rectangle('Position',[obstacle.Xo(1)-obstacle.W/2,obstacle.Xo(2)-obstacle.L/2,...
            obstacle.W,obstacle.L], 'FaceColor',[0.9290 0.6940 0.1250])
+axis equal
 
-%% Planning Simulation 
-% 
-% T = 0:Ts:4; % simulation time
-% xHistory = x0';
-% lastMV = zeros(nu,1);
-% uHistory = lastMV.';
-% 
-% for k = 1:length(T)
-%     xk = xHistory.';
-%     
-%     % Switching constraints if obstacle is detected
-%     detection = nmpc_obstacleDetect(xk,obstacle,params.cableL);
-%     
-%     if sum(detection) > 0
-%         obstacle.detectedXo = zeros(3,sum(detection));
-%         
-%         % Populate detected obstacle positions
-%         for i = 1:max(size(detection))
-%             if detection(i)
-%                 obstacle.detectedXo(:,i) = [obstacle.x(i);obstacle.y(i);obstacle.z(i)];                
-%             end
-%         end        
-%         nlobj.Optimization.CustomIneqConFcn = "nmpc_IneqConFcn_collisionFree";
-%     else
-%         nlobj.Optimization.CustomIneqConFcn = "nmpc_IneqConFcn_workspace";
-%     end
-%     
-%     % Trajectory planning; compute optimal control action for current time
-%     [uk,nloptions,info] = nlmpcmove(nlobj,xk,lastMV,[],[],nloptions);
-%     uHistory(k+1,:) = uk.';
-%     lastMV = uk;
-%     
-%     % Move obstacle
-%     obstacle.x = obstacle.xVel*k*Ts + obstacle.x;
-%     obstacle.y = 0*k*Ts + obstacle.y;
-%     obstacle.z = 0*k*Ts + obstacle.z;
-%     
-%     % Plot planned trajectory
-%     plot(info.Xopt(:,1),info.Xopt(:,2),'bo')
-%     hold on;
-%     xlabel('x position')
-%     ylabel('y position')
-%     axis equal
-%     
-%     % Plot obstacle position
-%     rectangle('Position',[obstacle.x-obstacle.W/2,obstacle.y-obstacle.L/2,...
-%                obstacle.W,obstacle.L], 'FaceColor',[0.9290 0.6940 0.1250])
-%     
+hbar = waitbar(0,'Simulation Progress');
+for k = 1:length(T)
+    plot(xHistory(k,1),xHistory(k,2),'rx')
+    xk = xHistory(k,:);
+    
+    % Trajectory planning; compute optimal control action for current time
+    [uk,nloptions,info] = nlmpcmove(nlobj,xk,lastMV,Xref(k:min(k+p-1,length(T)),:),[],nloptions);
+    uHistory(k+1,:) = uk';
+    lastMV = uk;
+    
+    % Update states.
+    ODEFUN = @(t,xk) nmpc_StateFcn(xk,uk,obstacle,lim,params);
+    [TOUT,YOUT] = ode45(ODEFUN,[0 Ts], xHistory(k,:)');
+    xHistory(k+1,:) = YOUT(end,:);
+    waitbar(k*Ts/Duration,hbar);
+    
+    % plot planned trajectory
+    x1_plan = info.Xopt(:,1);
+    x2_plan = info.Xopt(:,2);
+    plot(x1_plan,x2_plan,'g-');
+    
 %     % Wait a sec so we can see a pretty animation
 %     pause(0.1);
-% end  
+end  
+close(hbar)
+
+legend('Planned Trajectory','Actual Trajectory','NMPC Plan','Location','northeast')
+
+% % Plot planned trajectory
+% plot(xHistory(:,1), xHistory(:,2),'ro');
+% hold on;
+% xlabel('x position')
+% ylabel('y position')
+% axis equal
 
 %% Custom Equations for costs and constraints   
 % % Constraints       

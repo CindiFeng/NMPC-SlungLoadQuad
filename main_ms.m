@@ -113,5 +113,5 @@ ylabel('y position')
 axis equal
 
 % Plot obstacle position
-rectangle('Position',[obstacle.x-obstacle.W/2,obstacle.y-obstacle.L/2,...
+rectangle('Position',[obstacle.Xo(1)-obstacle.W/2,obstacle.Xo(2)-obstacle.L/2,...
            obstacle.W,obstacle.L], 'FaceColor',[0.9290 0.6940 0.1250])
