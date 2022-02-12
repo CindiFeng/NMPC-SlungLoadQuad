@@ -46,13 +46,13 @@ nu = 4;
 nlobj = nlmpc(nx,ny,nu);
 
 Ts = 0.1;   % sample time [s]
-p = 60;     % prediction horizon
+p = 26;     % prediction horizon
 m = 2;      % control horizon
 
 nlobj.Ts = Ts;
 nlobj.PredictionHorizon = p;
-nlobj.ControlHorizon = p; % perform trajectory planning 
-% nlobj.ControlHorizon = m; % tracking  
+% nlobj.ControlHorizon = p; % perform trajectory planning 
+nlobj.ControlHorizon = m; % tracking  
 
 nlobj.Model.StateFcn = "QuadrotorUZHStateFcn";
 
@@ -73,7 +73,7 @@ params.cableL = 1.5; % cable length [m]
 
 % Costs parameters
 params.qGoal = [3;0;5]; % quad goal position
-params.qStart = [-1;0;0]; % quad start position
+params.qStart = [-1;0;5]; % quad start position
 
 nloptions = nlmpcmoveopt;
 nloptions.Parameters = {obstacle,lim,params};
@@ -132,22 +132,21 @@ nlobj.Optimization.CustomIneqConFcn = "nmpc_IneqConFcn_collisionFree";
 validateFcns(nlobj,x0,u0,[],{obstacle,lim,params});
 
 %% Trajectory Planning with Static Obstacle
-Xgoal = [2,0,3,1,0,0,0,0,0,0];
-Xgoal(1:3) = params.qGoal;
-Xref = repmat(Xgoal,length(p),1);
-[~,~,info] = nlmpcmove(nlobj,x0,u0,Xref,[],nloptions);
-
-% Plot quadrotor path
-figure;
-plot(info.Xopt(:,1),info.Xopt(:,2),'bo')
-hold on;
-xlabel('x position')
-ylabel('y position')
-axis equal
-
-% Plot obstacle position
-rectangle('Position',[obstacle.Xo(1)-obstacle.W/2,obstacle.Xo(2)-obstacle.L/2,...
-           obstacle.W,obstacle.L], 'FaceColor',[0.9290 0.6940 0.1250])
+% terminal = zeros(1,nx);
+% terminal(1:3) = params.qGoal;
+% [~,~,info] = nlmpcmove(nlobj,x0,u0,terminal,[],nloptions);
+% 
+% % Plot quadrotor path
+% figure;
+% plot(info.Xopt(:,1),info.Xopt(:,2),'bo')
+% hold on;
+% xlabel('x position')
+% ylabel('y position')
+% axis equal
+% 
+% % Plot obstacle position
+% rectangle('Position',[obstacle.Xo(1)-obstacle.W/2,obstacle.Xo(2)-obstacle.L/2,...
+%            obstacle.W,obstacle.L], 'FaceColor',[0.9290 0.6940 0.1250])
 
 %% Tracking Simulation 
 
@@ -186,7 +185,7 @@ for k = 1:length(T)
     
     % Update states.
 %     ODEFUN = @(t,xk) nmpc_StateFcn(xk,uk,obstacle,lim,params);
-    ODEFUN = @(t,xk) QuadrotorUZHStateFcn(xk,uk,obstacle,lim,params);
+    ODEFUN = @(t,xk) QuadrotorUZHtateFcn(xk,uk,obstacle,lim,params);
     [TOUT,YOUT] = ode45(ODEFUN,[0 Ts], xHistory(k,:)');
     xHistory(k+1,:) = YOUT(end,:);
     waitbar(k*Ts/Duration,hbar);
@@ -202,6 +201,13 @@ end
 close(hbar)
 
 legend('Planned Trajectory','Actual Trajectory','NMPC Plan','Location','northeast')
+
+% % Plot planned trajectory
+% plot(xHistory(:,1), xHistory(:,2),'ro');
+% hold on;
+% xlabel('x position')
+% ylabel('y position')
+% axis equal
 
 %% Custom Equations for costs and constraints   
 % % Constraints       

@@ -11,11 +11,11 @@ function J = nmpc_CostFcn(X,U,e,data,obstacle,lim,params)
 p = data.PredictionHorizon;
 
 Xq = [X(2:p,1).';X(2:p,2).';X(2:p,3).']; % quad position over p horizon
-rp = [X(2:p,13).';X(2:p,14).'];
-Lz = sqrt(params.cableL^2-rp.'*rp);
-Lz = diag(Lz).';
-Lvec = [rp;Lz]; % load pos. w.r.t quad pos.
-Xp = Xq + Lvec; % load position over p horizon
+% rp = [X(2:p,13).';X(2:p,14).'];
+% Lz = sqrt(params.cableL^2-rp.'*rp);
+% Lz = diag(Lz).';
+% Lvec = [rp;Lz]; % load pos. w.r.t quad pos.
+% Xp = Xq + Lvec; % load position over p horizon
 
 %% Point to point navigation (terminal cost only)
 qpos = Xq(:,end); % only position at last time step is used
