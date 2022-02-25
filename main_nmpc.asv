@@ -66,14 +66,14 @@ params = struct;
 
 % Workspace limits
 lim.Wmin = [-5;-5;0]; % workspace limits
-lim.Wmax = [5;5;6];
+lim.Wmax = [5;5;20];
 
 % Quadrotor system parameters
 params.cableL = 1.5; % cable length [m]
 
 % Costs parameters
 params.qGoal = [4;0;5]; % quad goal position
-params.qStart = [1;0;2]; % quad start position
+params.qStart = [1;0;3]; % quad start position
 
 nloptions = nlmpcmoveopt;
 nloptions.Parameters = {obstacle,lim,params};
@@ -210,10 +210,10 @@ for k = 1:length(T)
 %     [uk,nloptions,info] = nlmpcmove(nlobj,xk,lastMV,Xref(k:min(k+p-1,length(T)),:),[],nloptions);
     [uk,nloptions,info] = nlmpcmove(nlobj,xk,lastMV,Xref,[],nloptions);
     uHistory(k+1,:) = uk';
-    lastMV = uk;
+    lastMV = u0;
     
     % Update states.
-    ODEFUN = @(t,xk) nmpc_StateFcn(xk,uk,obstacle,lim,params);
+    ODEFUN = @(t,xk) nmpc_StateFcn(xk,u0,obstacle,lim,params);
 %     ODEFUN = @(t,xk) QuadrotorUZHStateFcn(xk,uk,obstacle,lim,params);
     [TOUT,YOUT] = ode45(ODEFUN,[0 Ts], xHistory(k,:)');
     xHistory(k+1,:) = YOUT(end,:);

@@ -7,8 +7,8 @@ mass = 0.73;                     % mass of quadrotor
 J = diag([0.007, 0.007, 0.012]); % moment of inertia
 J_inv = diag([142.8571, 142.8571, 83.3333]); % inverse of moment of inertia
 g_z = 9.81;                  % gravity
-R_cb = RotateWtoB(-pi/2,0,-pi/2);
-R_bc = R_cb';
+% R_cb = RotateWtoB(-pi/2,0,-pi/2);
+% R_bc = R_cb';
 
 % Variables
 p_x = x(1);
