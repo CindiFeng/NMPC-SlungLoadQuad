@@ -1,5 +1,6 @@
 # NMPC-SlungLoadQuad
->Online trajectory planning and control using nonlinear MPC model in MATLAB to avoid dynamic/static obstacles
+>Online trajectory planning and control using nonlinear MPC model in MATLAB to avoid dynamic/static obstacles.
+>Adapted from "Online trajectory planning and control of a MAV payload system in dynamic environments" by Potdar et al. 
 
 ## Function
 - main.m - run file containing NMPC parameters and specifications
